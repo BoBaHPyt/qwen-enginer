@@ -33,4 +33,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: my-python-app
-        path: dist/main.exe  # Укажите правильный путь к EXE файлу
+        path: dist  # Укажите правильный путь к EXE файлу
