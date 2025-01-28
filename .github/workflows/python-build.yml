@@ -27,8 +27,7 @@ jobs:
 
     - name: Build EXE
       run: |
-        pyinstaller --onefile --icon=app.ico main.py
-        rm -rf build __pycache__
+        pyinstaller --onefile main.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
