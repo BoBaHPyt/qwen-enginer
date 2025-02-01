@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import Dict, Any
 from pathlib import Path
 import tomlkit
+import platform
+import os
 
 
 @dataclass(frozen=True)
@@ -11,8 +13,14 @@ class Config:
     
     @classmethod
     def load(cls, workhome):
-        filename = Path("~/.config/qwen-enginer/config.toml")
-        filename = filename.expanduser()
+        if platform.system() == "Windows":
+            filename = Path(os.path.join(os.getenv('APPDATA'), 'qwen-enginer/config.toml'))
+        elif platform.system() == "Darwin":
+            filename = Path("~/Library/Application Support/qwen-enginer/config.toml")
+            filename = filename.expanduser()
+        else:
+            filename = Path("~/.config/qwen-enginer/config.toml")
+            filename = filename.expanduser()
         if not filename.exists():
             filename.parent.mkdir(parents=True, exist_ok=True)
             config = tomlkit.document()

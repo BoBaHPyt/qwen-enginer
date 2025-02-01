@@ -28,7 +28,13 @@ class CodeModule(BaseModule):
             content = file.read()
         if original[-1] == "\n":
             original = original[:-1]
-        pattern = original.replace("\n", "\n\s*")
+
+        lines = original.split("\n")
+        for i in range(len(lines)):
+            while lines[i].startswith(" "):
+                lines[i] = lines[i][1:]
+            lines[i] = fr"\s*{lines[i]}"
+        pattern = "\n".join(lines)
         assert re.findall(pattern, content), f"<original> not in file {filename}"
         content = re.sub(pattern, new, content, 1)
         self.__write(filename, content, "w")
@@ -41,10 +47,14 @@ class CodeModule(BaseModule):
         new_blocks = block.xpath("new")
         if replace_blocks:
             for replace_block in replace_blocks:
-                self.__replace(filename, replace_block.xpath("original/text()")[0], replace_block.xpath("new/text()")[0])
+                original = replace_block.xpath("original/text()")[0].replace("\x06", "<").replace("\x07", ">").replace("\x08", "&")
+                repl = replace_block.xpath("new/text()")[0].replace("\x06", "<").replace("\x07", ">").replace("\x08", "&")
+                self.__replace(filename, original, repl)
         if new_blocks:
             for new_block in new_blocks:
-                self.__write(filename, f"\n{new_block.text}", "a+")
+                text = new_block.text.replace("\x06", "<").replace("\x07", ">").replace("\x08", "&")
+                self.__write(filename, f"\n{text}", "a+")
         if not replace_blocks and not new_blocks:
-            self.__write(filename, block.text)
+            text = block.text.replace("\x06", "<").replace("\x07", ">").replace("\x08", "&")
+            self.__write(filename, text)
         return f"{orig_filename} successfully changed"

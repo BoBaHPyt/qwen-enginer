@@ -5,7 +5,8 @@ from pathlib import Path
 
 
 class ContainerManager:
-    __self__ = None
+    __instance = None
+    __init = False
     
     __docker: docker.DockerClient
     main_image = "bobahpyt/qwen-enginer"
@@ -13,33 +14,36 @@ class ContainerManager:
     __containers: List[docker.models.containers.Container]
     
     def __init__(self):
-        self.__containers = []
+        if not self.__init:
+            self.__init = True
+            self.__containers = []
         
-        for url in self.base_urls:
-            try:
-                self.__docker = docker.DockerClient(base_url=url)
-                self.__docker.ping()
-                break
-            except:
-                print(f"Не удалось подключиться к docker через {url}")
-        else:
-            try:
-                self.__docker = docker.from_env()
-                self.__docker.ping()
-            except:
-                print(f"Не удалось подключиться к docker. Проверьте установку docker.")
-                quit()
+            for url in self.base_urls:
+                try:
+                    self.__docker = docker.DockerClient(base_url=url)
+                    self.__docker.ping()
+                    break
+                except:
+                    print(f"Не удалось подключиться к docker через {url}")
+            else:
+                try:
+                    self.__docker = docker.from_env()
+                    self.__docker.ping()
+                except:
+                    print(f"Не удалось подключиться к docker. Проверьте установку docker.")
+                    quit()
 
     def __new__(cls, *args, **kwargs):
-        if cls.__self__ is None:
-            cls.__self__ = super().__new__(cls, *args, **kwargs)
-        return cls.__self__
+        if cls.__instance is None:
+            cls.__instance = super().__new__(cls, *args, **kwargs)
+        return cls.__instance
 
     def close(self):
         for container in self.__containers:
             try:
                 container.stop()
-            except:
+            except Exception as ex:
+                raise ex
                 pass
         self.__docker.close()
 
@@ -64,7 +68,7 @@ class ContainerManager:
         dirname = Path(f"~/QwenProjects/{name}").expanduser()
         dirname.mkdir(parents=True, exist_ok=True)
         
-        container = self.__docker.containers.run(self.main_image, detach=True, name=name, volumes={str(dirname): {"bind": "/project", "mode": "rw"}}, command="sleep infinity")
+        container = self.__docker.containers.run(self.main_image, detach=True, name=name, volumes={str(dirname): {"bind": "/project", "mode": "rw"}}, command="sleep infinity", network_mode="host")
         self.__containers.append(container)
         
         return container

@@ -26,6 +26,12 @@ class ShellModule(BaseModule):
 
         self.readall(self.runtime_sock)
         self.readall(self.mainshell_sock)
+        self.exec(self.runtime_sock, "\x03")
+        self.exec(self.mainshell_sock, "\x03")
+        self.exec(self.mainshell_sock, "git config --global --add safe.directory /project")
+        self.exec(self.mainshell_sock, "git config --global user.email \"qwen-enginer@mstat.kz\"")
+        self.exec(self.mainshell_sock, "git config --global user.name \"QwenEnginer\"")
+
         self.exec(self.runtime_sock, "source /venv/bin/activate && export WORKHOME=/project\n")
         self.exec(self.mainshell_sock, "source /venv/bin/activate && export WORKHOME=/project\n")
 
@@ -38,7 +44,7 @@ class ShellModule(BaseModule):
 
     def readall(self, sock):
         data = b""
-        while (not self.__exec_done.match(data) and not self.__exec_start.match(data)) and select.select([sock], [], [], 1):
+        while (not self.__exec_done.match(data) and not self.__exec_start.match(data)) and select.select([sock], [], [], 10)[0]:
             data += sock.recv(1024)
         data = self.__r_replace.sub(b"", data)
         if self.__exec_start.match(data):
@@ -52,7 +58,6 @@ class ShellModule(BaseModule):
             for chunk in line.split("\r"):
                 if chunk:
                     lines[i] = chunk
-        print("\n".join(lines))
         return "\n".join(lines)
 
     def validate(self, blockname, block, filename=None, **kwargs):
@@ -63,6 +68,7 @@ class ShellModule(BaseModule):
     def process(self, blockname, block, id, **kwargs):
         if id == "runtime":
             self.exec(self.runtime_sock, "\x03")
-            return self.exec(self.runtime_sock, block.text.strip())
+            return self.exec(self.runtime_sock, block.text.replace("\x06", "<").replace("\x07", ">").replace("\x08", "&").strip())
         else:
-            return self.exec(self.mainshell_sock, block.text.strip())
+            self.exec(self.mainshell_sock, "\x03")
+            return self.exec(self.mainshell_sock, block.text.replace("\x06", "<").replace("\x07", ">").replace("\x08", "&").strip())

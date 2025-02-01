@@ -34,8 +34,8 @@ class MessageHistory(list):
         if filename.exists():
             with open(filename, "r") as file:
                 messages_data = json.load(file)
-            return cls([Message(**message_data) for message_data in messages_data], one_system=True)
-        return cls()
+            return cls([Message(**message_data) for message_data in messages_data], one_system=one_system)
+        return cls(one_system=one_system)
 
     def to_json(self, filename):
         filename = Path(filename)

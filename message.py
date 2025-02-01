@@ -4,9 +4,10 @@ from typing import Literal, Generator, Tuple, Dict, Any
 from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime
-from lxml import etree
+from lxml import etree, html
+import re
 
-etree.XMLParser()
+
 @dataclass(eq=False, frozen=True)
 class Message:
     role: Literal["system", "user", "assistant"]
@@ -55,47 +56,25 @@ class Message:
         content = self.content
         return f"<message {attrs}>\n{content}\n</message>"
 
-    def cdata(self, element, recursive=["code", "new", "code-replace", "original", "shell"]):
-        code_replace_elements = []
-        # Собираем текст, исключая содержимое <code-replace>
-        cdata_text = []
-        # Проходим по всем дочерним элементам внутри <code> 
-        for child in element:
-            if child.tag in recursive:
-                code_replace_elements.append(self.cdata(child))
-            else:
-                cdata_text.append(etree.tostring(child).decode())
-        
-            if child.tail.strip():
-                cdata_text.append(child.tail.strip())
-                child.tail = ""
-    
-        if element.text:
-            cdata_text.insert(0, element.text.strip())
-    
-        cdata_text = '\n'.join(cdata_text)
-        element.clear()
-
-        if cdata_text:
-            cdata = etree.CDATA(cdata_text)
-            element.text = cdata
-        
-        for child in code_replace_elements:
-            element.append(child)
-
-        return element
-
     @property
     def codeblocks(self) -> Generator[Dict[str, Any], None, None]:
+        tags = ["message", "workspace", "code", "shell", "new", "code-replace", "original"]
         xml = self.to_xml()
+        xml = xml.replace("<", "šŠ").replace(">", "Šš").replace("&", "ŝ")
+        for tag in tags:
+            pattern = rf"šŠ(/?{tag}[^Š\n\r]*?)Šš"
+            xml = re.sub(pattern, lambda x: f"<{x.group(1)}>", xml)
         parser = etree.XMLParser(remove_blank_text=True, recover=True)
-        tree = etree.fromstring(xml, parser)
+        tree = html.fromstring(xml, parser=parser)
         blocks = tree.xpath("//workspace/*")
         for block in blocks:
-            codeblock = {}
+            for element in list(block.iterdescendants()) + [block]:
+                if element.text:
+                    element.text = element.text.replace("šŠ", "<").replace("Šš", ">").replace("ŝ", "&")
+                if element.tail:
+                    element.tail = element.tail.replace("šŠ", "<").replace("Šš", ">").replace("ŝ", "&")
+            codeblock = {"block": block, "blockname": block.tag}
             codeblock.update(block.attrib)
-            block = self.cdata(block)
-            codeblock.update({"block": block, "blockname": block.tag})
             yield codeblock
 
 
